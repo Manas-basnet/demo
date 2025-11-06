@@ -70,6 +70,17 @@ class _CreateItemPageState extends State<CreateItemPage> {
   List<UomEntry> _uomEntries = [];
 
   @override
+  void initState() {
+    super.initState();
+    // Load SubTypeItem data when page initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<SubTypeItemCubit>().loadSubTypeItems();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _hsCodeController.dispose();
     _itemCodeController.dispose();
@@ -249,40 +260,62 @@ class _CreateItemPageState extends State<CreateItemPage> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: BlocBuilder<SubTypeItemCubit, SubTypeItemState>(
-                                  builder: (context, state) {
-                                    return AutocompleteDropdown<int>(
-                                      label: 'Purpose',
-                                      items: state.maybeWhen(
-                                        loading: () => [],
-                                        loaded: (data) => data
-                                            .map(
-                                              (e) => (
-                                                text: e.value,
-                                                value: e.id,
-                                              ),
-                                            )
-                                            .toList(),
-                                        orElse: () => [],
-                                      ),
-                                      value: _selectedSubItemType,
-                                      onChanged: (val) {
-                                        setState(() => _selectedSubItemType = val);
-                                        log(val.toString());
+                                child: BlocListener<SubTypeItemCubit, SubTypeItemState>(
+                                  listener: (context, state) {
+                                    // Auto-select item with id = 1 when data is loaded
+                                    state.maybeWhen(
+                                      loaded: (data) {
+                                        if (_selectedSubItemType == null && data.isNotEmpty) {
+                                          // Find item with id = 1
+                                          final itemWithId1 = data.firstWhere(
+                                            (item) => item.id == 1,
+                                            orElse: () => data.first,
+                                          );
+                                          if (mounted) {
+                                            setState(() {
+                                              _selectedSubItemType = itemWithId1.id;
+                                            });
+                                          }
+                                        }
                                       },
-                                      isLoading: state.maybeWhen(
-                                        loading: () => true,
-                                        orElse: () => false,
-                                      ),
-                                      isError: state.maybeWhen(
-                                        error: (err) => true,
-                                        orElse: () => false
-                                      ),
-                                      onRetry: () {
-                                        context.read<PreferredVendorItemCubit>().loadPreferredVendorItems();
-                                      }
+                                      orElse: () {},
                                     );
                                   },
+                                  child: BlocBuilder<SubTypeItemCubit, SubTypeItemState>(
+                                    builder: (context, state) {
+                                      return AutocompleteDropdown<int>(
+                                        label: 'Purpose',
+                                        items: state.maybeWhen(
+                                          loading: () => [],
+                                          loaded: (data) => data
+                                              .map(
+                                                (e) => (
+                                                  text: e.value,
+                                                  value: e.id,
+                                                ),
+                                              )
+                                              .toList(),
+                                          orElse: () => [],
+                                        ),
+                                        value: _selectedSubItemType,
+                                        onChanged: (val) {
+                                          setState(() => _selectedSubItemType = val);
+                                          log(val.toString());
+                                        },
+                                        isLoading: state.maybeWhen(
+                                          loading: () => true,
+                                          orElse: () => false,
+                                        ),
+                                        isError: state.maybeWhen(
+                                          error: (err) => true,
+                                          orElse: () => false
+                                        ),
+                                        onRetry: () {
+                                          context.read<SubTypeItemCubit>().loadSubTypeItems();
+                                        }
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             ],
